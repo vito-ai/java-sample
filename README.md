@@ -1,1 +1,1 @@
-java sample
+Java sample
