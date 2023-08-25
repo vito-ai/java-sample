@@ -1,6 +1,7 @@
 package ai.vito.openapi.stream;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.concurrent.CountDownLatch;
@@ -42,8 +43,14 @@ public class VitoSttWebSocketClient {
         VitoWebSocketListener webSocketListener = new VitoWebSocketListener();
         WebSocket vitoWebSocket = client.newWebSocket(request, webSocketListener);
 
-        File file = new File("sample.wav");
-        AudioInputStream in = AudioSystem.getAudioInputStream(file);
+        AudioInputStream in = null;
+        try {
+            File file = new File("sample.wav");
+            in = AudioSystem.getAudioInputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
 
         byte[] buffer = new byte[1024];
         int readBytes;
@@ -55,6 +62,7 @@ public class VitoSttWebSocketClient {
             }
             Thread.sleep(0, 50);
         }
+        in.close();
         vitoWebSocket.send("EOS");
 
         webSocketListener.waitClose();
@@ -65,7 +73,7 @@ public class VitoSttWebSocketClient {
 class VitoWebSocketListener extends WebSocketListener {
     private static final Logger logger = Logger.getLogger(VitoSttWebSocketClient.class.getName());
     private static final int NORMAL_CLOSURE_STATUS = 1000;
-    private final CountDownLatch latch = new CountDownLatch(1);
+    private CountDownLatch latch = null;
 
     private static void log(Level level, String msg, Object... args) {
         logger.log(level, msg, args);
@@ -74,6 +82,7 @@ class VitoWebSocketListener extends WebSocketListener {
     @Override
     public void onOpen(WebSocket webSocket, Response response) {
         log(Level.INFO, "Open " + response.message());
+        latch = new CountDownLatch(1);
     }
 
     @Override
