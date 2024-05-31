@@ -41,6 +41,16 @@ message DecoderResponse {
     enum SpeechEventType {
         // No speech event specified.
         SPEECH_EVENT_UNSPECIFIED = 0;
+        // speech final event with EPD. This event is only sent if
+        // `epd_time` was set to `true`, and is not used otherwise.
+        SPEECH_EVENT_END_POINT= 1;
+
+        START_OF_VAD = 2;
+        END_OF_VAD = 3;
+        END_POINT_DETECTED = 4;
+
+        SPEECH_EVENT_DIARIZED = 5;
+        SPEECH_EVENT_ALL_UTTERANCE = 6;
 
         // This event indicates that the server has detected the end of the user's
         // speech utterance and expects no additional speech. Therefore, the server
@@ -49,7 +59,7 @@ message DecoderResponse {
         // data, half-close the gRPC connection, and wait for any additional results
         // until the server closes the gRPC connection. This event is only sent if
         // `single_utterance` was set to `true`, and is not used otherwise.
-        END_OF_SINGLE_UTTERANCE = 1;
+        END_OF_SINGLE_UTTERANCE = 10;
     }
 
     bool error = 1;
@@ -94,6 +104,11 @@ message StreamingRecognitionResult {
     // beginning of the audio.
     int32 start_at = 5;
 
+    // sequence of the utterance.
+    int32 seq = 6;
+
+    // speaker ID  //itray : 화자 ID
+    optional int32 spk = 7;
 }
 
 // Alternative hypotheses (a.k.a. n-best list).
@@ -151,7 +166,7 @@ message WordInfo {
     // have spoken this word. Value ranges from '1' to diarization_speaker_count.
     // speaker_tag is set if enable_speaker_diarization = 'true' and only in the
     // top alternative.
-    int32 speaker_tag = 5;
+    optional int32 speaker_tag = 5;
 }
 
 
@@ -196,8 +211,12 @@ message DecoderConfig {
 
     int32 sample_rate = 1;
     AudioEncoding encoding = 2;
+    optional string model_name = 3;
     optional bool use_itn= 5;
     optional bool use_disfluency_filter = 13;
     optional bool use_profanity_filter = 14;
+    repeated string keywords = 23;
+    //itray : 화자 수 설정, default: 2
+    optional int32 spk_cnt = 24;
 }
 
