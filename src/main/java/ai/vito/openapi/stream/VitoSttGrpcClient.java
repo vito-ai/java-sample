@@ -1,3 +1,8 @@
+/* 해당 예제는 아래 파일 포맷을 지원합니다
+WAV, AU, AIFF
+https://docs.oracle.com/javase/8/docs/technotes/guides/sound/index.html
+*/
+
 package ai.vito.openapi.stream;
 
 import ai.vito.openapi.auth.Auth;
