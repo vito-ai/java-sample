@@ -11,11 +11,54 @@ import io.grpc.stub.StreamObserver;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.sound.sampled.*;
+
+final class FileStreamer {
+    private AudioInputStream audio8KStream;
+
+    public FileStreamer(String filePath) throws IOException, UnsupportedAudioFileException {
+        File file = new File(filePath);
+        try {
+            AudioInputStream originalAudioStream = AudioSystem.getAudioInputStream(file);
+            AudioFormat originalFormat = originalAudioStream.getFormat();
+            AudioFormat newFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    8000,
+                    16,
+                    1,
+                    1 * (16 / 8),
+                    8000,
+                    originalFormat.isBigEndian());
+
+            this.audio8KStream = AudioSystem.getAudioInputStream(newFormat, originalAudioStream);
+        } catch (IOException | UnsupportedAudioFileException e) {
+            System.out.println(e);
+            throw e;
+        }
+    }
+
+    public int read(byte[] b) throws IOException, InterruptedException {
+        int maxSize = 1024 * 1024;
+        int byteSize = Math.min(b.length, maxSize);
+        try {
+            Thread.sleep(byteSize / 16);
+        } catch (InterruptedException e) {
+            throw e;
+        }
+        return this.audio8KStream.read(b, 0, byteSize);
+    }
+
+    public void close() throws IOException {
+        this.audio8KStream.close();
+
+    }
+}
 
 public class VitoSttGrpcClient {
     private static final Logger logger = Logger.getLogger(VitoSttGrpcClient.class.getName());
@@ -29,9 +72,11 @@ public class VitoSttGrpcClient {
         asyncStub = OnlineDecoderGrpc.newStub(channel)
                 .withCallCredentials(new CallCredentials() {
                     @Override
-                    public void applyRequestMetadata(RequestInfo requestInfo, Executor appExecutor, MetadataApplier applier) {
+                    public void applyRequestMetadata(RequestInfo requestInfo, Executor appExecutor,
+                            MetadataApplier applier) {
                         final Metadata metadata = new Metadata();
-                        metadata.put(Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER), "Bearer " + token);
+                        metadata.put(Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER),
+                                "Bearer " + token);
                         applier.apply(metadata);
                     }
 
@@ -60,7 +105,6 @@ public class VitoSttGrpcClient {
         });
     }
 
-
     public void await(long timeout, TimeUnit unit) throws InterruptedException {
         finishLatch.await(timeout, unit);
     }
@@ -84,15 +128,19 @@ public class VitoSttGrpcClient {
     private static void log(Level level, String msg, Object... args) {
         logger.log(level, msg, args);
     }
-    
+
+    private static void log(Level level, String msg, Throwable t) {
+        logger.log(level, msg, t);
+    }
+
     public static void main(String[] args) throws Exception {
 
         ManagedChannel channel = ManagedChannelBuilder.forTarget("grpc-openapi.vito.ai:443")
                 .useTransportSecurity()
                 .build();
-        
+
         String token = Auth.getAccessToken();
-        
+
         VitoSttGrpcClient client = new VitoSttGrpcClient(channel, token, new StreamObserver<DecoderResponse>() {
             @Override
             public void onNext(DecoderResponse value) {
@@ -101,9 +149,10 @@ public class VitoSttGrpcClient {
                 if (result.getIsFinal()) {
                     System.out.printf("final:%6d,%6d: %s\n", result.getStartAt(), result.getDuration(), best.getText());
                 } else {
-                    System.out.printf(best.getText() + "\n") ;
+                    System.out.printf(best.getText() + "\n");
                 }
             }
+
             @Override
             public void onError(Throwable t) {
                 log(Level.WARNING, "on error", t);
@@ -114,22 +163,21 @@ public class VitoSttGrpcClient {
                 log(Level.INFO, "Complete");
             }
         });
-        File file = new File("sample.wav");
-        AudioInputStream in = AudioSystem.getAudioInputStream(file);
-        DecoderConfig config = DecoderConfig.newBuilder().
-                setSampleRate(8000).
-                setEncoding(DecoderConfig.AudioEncoding.LINEAR16).
-                setUseItn(true).
-                setUseDisfluencyFilter(true).
-                setUseProfanityFilter(true).build();
+        FileStreamer fileStreamer = new FileStreamer(
+                "sample.wav");
+
+        DecoderConfig config = DecoderConfig.newBuilder().setSampleRate(8000)
+                .setEncoding(DecoderConfig.AudioEncoding.LINEAR16).setUseItn(true).setUseDisfluencyFilter(true)
+                .setUseProfanityFilter(true).build();
 
         client.setDecoderConfig(config);
         byte[] buffer = new byte[1024];
         int readed = 0;
         // Try to read numBytes bytes from the file.
-        while ((readed = in.read(buffer)) != -1) {
+        while ((readed = fileStreamer.read(buffer)) != -1) {
             client.send(buffer, readed);
         }
+        fileStreamer.close();
         client.closeSend();
         client.await();
     }

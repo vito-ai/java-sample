@@ -1,13 +1,15 @@
 package ai.vito.openapi.stream;
 
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.concurrent.CountDownLatch;
 
+import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
 
 import ai.vito.openapi.auth.Auth;
 import okhttp3.HttpUrl;
@@ -17,6 +19,46 @@ import okhttp3.Response;
 import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 import okio.ByteString;
+
+final class FileStreamer {
+    private AudioInputStream audio8KStream;
+
+    public FileStreamer(String filePath) throws IOException, UnsupportedAudioFileException {
+        File file = new File(filePath);
+        try {
+            AudioInputStream originalAudioStream = AudioSystem.getAudioInputStream(file);
+            AudioFormat originalFormat = originalAudioStream.getFormat();
+            AudioFormat newFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    8000,
+                    16,
+                    1,
+                    1 * (16 / 8),
+                    8000,
+                    originalFormat.isBigEndian());
+
+            this.audio8KStream = AudioSystem.getAudioInputStream(newFormat, originalAudioStream);
+        } catch (IOException | UnsupportedAudioFileException e) {
+            throw e;
+        }
+    }
+
+    public int read(byte[] b) throws IOException, InterruptedException {
+        int maxSize = 1024 * 1024;
+        int byteSize = Math.min(b.length, maxSize);
+        try {
+            Thread.sleep(byteSize / 16);
+        } catch (InterruptedException e) {
+            throw e;
+        }
+        return this.audio8KStream.read(b, 0, byteSize);
+    }
+
+    public void close() throws IOException {
+        this.audio8KStream.close();
+
+    }
+}
 
 public class VitoSttWebSocketClient {
 
@@ -43,18 +85,11 @@ public class VitoSttWebSocketClient {
         VitoWebSocketListener webSocketListener = new VitoWebSocketListener();
         WebSocket vitoWebSocket = client.newWebSocket(request, webSocketListener);
 
-        AudioInputStream in = null;
-        try {
-            File file = new File("sample.wav");
-            in = AudioSystem.getAudioInputStream(file);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
+        FileStreamer fileStreamer = new FileStreamer("sample.wav");
 
         byte[] buffer = new byte[1024];
         int readBytes;
-        while ((readBytes = in.read(buffer)) != -1) {
+        while ((readBytes = fileStreamer.read(buffer)) != -1) {
             boolean sent = vitoWebSocket.send(ByteString.of(buffer, 0, readBytes));
             if (!sent) {
                 logger.log(Level.WARNING, "Send buffer is full. Cannot complete request. Increase sleep interval.");
@@ -62,7 +97,7 @@ public class VitoSttWebSocketClient {
             }
             Thread.sleep(0, 50);
         }
-        in.close();
+        fileStreamer.close();
         vitoWebSocket.send("EOS");
 
         webSocketListener.waitClose();
