@@ -57,7 +57,7 @@ final class FileStreamer {
         int maxSize = 1024 * 1024;
         int byteSize = Math.min(b.length, maxSize);
         try {
-            Thread.sleep(byteSize / (SAMPLE_RATE * (BITS_PER_SAMPLE / 8) / 1000));
+            Thread.sleep(byteSize / ((SAMPLE_RATE * (BITS_PER_SAMPLE / 8)) / 1000));
         } catch (InterruptedException e) {
             throw e;
         }
