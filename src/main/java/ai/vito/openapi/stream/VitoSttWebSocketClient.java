@@ -1,4 +1,3 @@
-
 /* 해당 예제는 아래 파일 포맷을 지원합니다
 WAV, AU, AIFF
 https://docs.oracle.com/javase/8/docs/technotes/guides/sound/index.html
@@ -26,8 +25,14 @@ import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 import okio.ByteString;
 
+/*
+본 예제에서는 스트리밍 입력을 음성파일을 읽어서 시뮬레이션 합니다.
+실제사용시에는 마이크 입력 등의 실시간 음성 스트림이 들어와야합니다.
+*/
 final class FileStreamer {
     private AudioInputStream audio8KStream;
+    private int SAMPLE_RATE = 8000;
+    private int BITS_PER_SAMPLE = 16;
 
     public FileStreamer(String filePath) throws IOException, UnsupportedAudioFileException {
         File file = new File(filePath);
@@ -36,11 +41,11 @@ final class FileStreamer {
             AudioFormat originalFormat = originalAudioStream.getFormat();
             AudioFormat newFormat = new AudioFormat(
                     AudioFormat.Encoding.PCM_SIGNED,
-                    8000,
-                    16,
+                    SAMPLE_RATE,
+                    BITS_PER_SAMPLE,
                     1,
-                    1 * (16 / 8),
-                    8000,
+                    1 * (BITS_PER_SAMPLE / 8),
+                    SAMPLE_RATE,
                     originalFormat.isBigEndian());
 
             this.audio8KStream = AudioSystem.getAudioInputStream(newFormat, originalAudioStream);
@@ -53,7 +58,7 @@ final class FileStreamer {
         int maxSize = 1024 * 1024;
         int byteSize = Math.min(b.length, maxSize);
         try {
-            Thread.sleep(byteSize / 16);
+            Thread.sleep(byteSize / (SAMPLE_RATE * (BITS_PER_SAMPLE / 8) / 1000));
         } catch (InterruptedException e) {
             throw e;
         }
@@ -62,7 +67,6 @@ final class FileStreamer {
 
     public void close() throws IOException {
         this.audio8KStream.close();
-
     }
 }
 
