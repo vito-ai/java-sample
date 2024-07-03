@@ -13,8 +13,6 @@ import com.google.protobuf.ByteString;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -69,14 +67,14 @@ final class FileStreamer {
     }
 }
 
-public class VitoSttGrpcClient {
-    private static final Logger logger = Logger.getLogger(VitoSttGrpcClient.class.getName());
+public class RTZRSttGrpcClient {
+    private static final Logger logger = Logger.getLogger(RTZRSttGrpcClient.class.getName());
 
     private final OnlineDecoderGrpc.OnlineDecoderStub asyncStub;
     private final StreamObserver<DecoderRequest> decoder;
     private final CountDownLatch finishLatch;
 
-    public VitoSttGrpcClient(Channel channel, final String token, final StreamObserver<DecoderResponse> observer) {
+    public RTZRSttGrpcClient(Channel channel, final String token, final StreamObserver<DecoderResponse> observer) {
         finishLatch = new CountDownLatch(1);
         asyncStub = OnlineDecoderGrpc.newStub(channel)
                 .withCallCredentials(new CallCredentials() {
@@ -150,7 +148,7 @@ public class VitoSttGrpcClient {
 
         String token = Auth.getAccessToken();
 
-        VitoSttGrpcClient client = new VitoSttGrpcClient(channel, token, new StreamObserver<DecoderResponse>() {
+        RTZRSttGrpcClient client = new RTZRSttGrpcClient(channel, token, new StreamObserver<DecoderResponse>() {
             @Override
             public void onNext(DecoderResponse value) {
                 StreamingRecognitionResult result = value.getResults(0);

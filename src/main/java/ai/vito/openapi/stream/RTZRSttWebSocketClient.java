@@ -70,10 +70,10 @@ final class FileStreamer {
     }
 }
 
-public class VitoSttWebSocketClient {
+public class RTZRSttWebSocketClient {
 
     public static void main(String[] args) throws Exception {
-        Logger logger = Logger.getLogger(VitoSttWebSocketClient.class.getName());
+        Logger logger = Logger.getLogger(RTZRSttWebSocketClient.class.getName());
         OkHttpClient client = new OkHttpClient();
 
         String token = Auth.getAccessToken();
@@ -92,15 +92,15 @@ public class VitoSttWebSocketClient {
                 .addHeader("Authorization", "Bearer " + token)
                 .build();
 
-        VitoWebSocketListener webSocketListener = new VitoWebSocketListener();
-        WebSocket vitoWebSocket = client.newWebSocket(request, webSocketListener);
+        RTZRWebSocketListener webSocketListener = new RTZRWebSocketListener();
+        WebSocket rtzrWebSocket = client.newWebSocket(request, webSocketListener);
 
         FileStreamer fileStreamer = new FileStreamer("sample.wav");
 
         byte[] buffer = new byte[1024];
         int readBytes;
         while ((readBytes = fileStreamer.read(buffer)) != -1) {
-            boolean sent = vitoWebSocket.send(ByteString.of(buffer, 0, readBytes));
+            boolean sent = rtzrWebSocket.send(ByteString.of(buffer, 0, readBytes));
             if (!sent) {
                 logger.log(Level.WARNING, "Send buffer is full. Cannot complete request. Increase sleep interval.");
                 System.exit(1);
@@ -108,15 +108,15 @@ public class VitoSttWebSocketClient {
             Thread.sleep(0, 50);
         }
         fileStreamer.close();
-        vitoWebSocket.send("EOS");
+        rtzrWebSocket.send("EOS");
 
         webSocketListener.waitClose();
         client.dispatcher().executorService().shutdown();
     }
 }
 
-class VitoWebSocketListener extends WebSocketListener {
-    private static final Logger logger = Logger.getLogger(VitoSttWebSocketClient.class.getName());
+class RTZRWebSocketListener extends WebSocketListener {
+    private static final Logger logger = Logger.getLogger(RTZRSttWebSocketClient.class.getName());
     private static final int NORMAL_CLOSURE_STATUS = 1000;
     private CountDownLatch latch = null;
 
