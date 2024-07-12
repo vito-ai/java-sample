@@ -105,7 +105,6 @@ public class RTZRSttWebSocketClient {
                 logger.log(Level.WARNING, "Send buffer is full. Cannot complete request. Increase sleep interval.");
                 System.exit(1);
             }
-            Thread.sleep(0, 50);
         }
         fileStreamer.close();
         rtzrWebSocket.send("EOS");
